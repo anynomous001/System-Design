@@ -1,0 +1,1670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>System Design Blueprint</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #18181f;
+    --border: #2a2a38;
+    --border-bright: #3a3a50;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --accent3: #ff6b6b;
+    --accent4: #ffa94d;
+    --text: #e8e8f0;
+    --text-muted: #7a7a9a;
+    --text-dim: #4a4a6a;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    opacity: 0.25;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* Header */
+  .header {
+    margin-bottom: 56px;
+    border-left: 3px solid var(--accent);
+    padding-left: 20px;
+  }
+
+  .header .tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent2);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .header h1 {
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 800;
+    line-height: 1.1;
+    color: var(--text);
+    letter-spacing: -0.03em;
+  }
+
+  .header h1 span { color: var(--accent); }
+
+  .header p {
+    margin-top: 12px;
+    font-size: 15px;
+    color: var(--text-muted);
+    font-family: var(--mono);
+    line-height: 1.6;
+    max-width: 620px;
+  }
+
+  /* Blueprint tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 40px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+    width: fit-content;
+  }
+
+  .tab-btn {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 500;
+    padding: 9px 20px;
+    border: none;
+    border-radius: 7px;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.2s;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+  }
+
+  .tab-btn.active {
+    background: var(--accent);
+    color: #fff;
+  }
+
+  .tab-btn:hover:not(.active) {
+    background: var(--surface2);
+    color: var(--text);
+  }
+
+  /* Blueprint panel */
+  .blueprint { display: none; }
+  .blueprint.active { display: block; }
+
+  /* Blueprint title bar */
+  .blueprint-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 40px;
+    padding: 24px 28px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    border-top: 3px solid var(--accent2);
+  }
+
+  .blueprint-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: rgba(108,99,255,0.15);
+    border: 1px solid rgba(108,99,255,0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+  }
+
+  .blueprint-meta h2 {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .blueprint-meta p {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 6px;
+    line-height: 1.6;
+  }
+
+  .blueprint-stats {
+    margin-left: auto;
+    display: flex;
+    gap: 24px;
+    flex-shrink: 0;
+  }
+
+  .stat { text-align: center; }
+  .stat-num {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--accent2);
+    display: block;
+  }
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  /* Progress bar */
+  .progress-bar {
+    margin-bottom: 36px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .progress-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .progress-track {
+    flex: 1;
+    height: 4px;
+    background: var(--surface2);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+    transition: width 0.4s ease;
+    width: 0%;
+  }
+
+  .progress-pct {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent2);
+    min-width: 36px;
+    text-align: right;
+  }
+
+  /* Phase block */
+  .phase {
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .phase.phase-done { border-color: rgba(0,212,170,0.4); }
+  .phase.phase-active { border-color: var(--accent); }
+
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 18px 22px;
+    background: var(--surface);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+
+  .phase-header:hover { background: var(--surface2); }
+
+  .phase-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-dim);
+    width: 24px;
+    flex-shrink: 0;
+  }
+
+  .phase.phase-done .phase-num { color: var(--accent2); }
+  .phase.phase-active .phase-num { color: var(--accent); }
+
+  .phase-icon {
+    font-size: 18px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface2);
+    border-radius: 7px;
+    flex-shrink: 0;
+  }
+
+  .phase-title-block { flex: 1; }
+
+  .phase-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  .phase-subtitle {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .phase-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  .phase.phase-done .phase-badge {
+    background: rgba(0,212,170,0.1);
+    border-color: rgba(0,212,170,0.3);
+    color: var(--accent2);
+  }
+
+  .phase-chevron {
+    color: var(--text-dim);
+    font-size: 12px;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .phase.open .phase-chevron { transform: rotate(90deg); }
+
+  /* Phase body */
+  .phase-body {
+    display: none;
+    padding: 0 22px 22px;
+    background: var(--surface);
+  }
+
+  .phase.open .phase-body { display: block; }
+
+  /* Decision note */
+  .decision-note {
+    background: rgba(108,99,255,0.07);
+    border: 1px solid rgba(108,99,255,0.2);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.6;
+  }
+
+  .decision-note strong {
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Question group */
+  .q-group { margin-bottom: 20px; }
+
+  .q-group-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--accent4);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .q-group-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* Question item */
+  .q-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 7px;
+    cursor: pointer;
+    transition: background 0.15s;
+    margin-bottom: 4px;
+    border: 1px solid transparent;
+  }
+
+  .q-item:hover { background: var(--surface2); }
+
+  .q-item.checked {
+    background: rgba(0,212,170,0.05);
+    border-color: rgba(0,212,170,0.15);
+  }
+
+  .q-check {
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--border-bright);
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    font-size: 11px;
+    color: transparent;
+  }
+
+  .q-item.checked .q-check {
+    background: var(--accent2);
+    border-color: var(--accent2);
+    color: #000;
+  }
+
+  .q-text-block { flex: 1; }
+
+  .q-text {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.4;
+    transition: color 0.15s;
+  }
+
+  .q-item.checked .q-text { color: var(--text-muted); }
+
+  .q-subtext {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 3px;
+    line-height: 1.5;
+  }
+
+  .q-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: rgba(255,165,77,0.1);
+    border: 1px solid rgba(255,165,77,0.25);
+    color: var(--accent4);
+    white-space: nowrap;
+    margin-top: 2px;
+    display: inline-block;
+  }
+
+  .q-tag.critical {
+    background: rgba(255,107,107,0.1);
+    border-color: rgba(255,107,107,0.25);
+    color: var(--accent3);
+  }
+
+  .q-tag.metric {
+    background: rgba(108,99,255,0.1);
+    border-color: rgba(108,99,255,0.25);
+    color: var(--accent);
+  }
+
+  /* Metric grid inside phase */
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .metric-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  .metric-card-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+  }
+
+  .metric-card-value {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent2);
+  }
+
+  /* Decision matrix */
+  .decision-matrix {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 20px;
+  }
+
+  .dm-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+
+  .dm-row:last-child { border-bottom: none; }
+
+  .dm-header .dm-cell {
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--surface);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 10px;
+  }
+
+  .dm-cell {
+    padding: 10px 14px;
+    color: var(--text-dim);
+    border-right: 1px solid var(--border);
+    line-height: 1.5;
+  }
+
+  .dm-cell:last-child { border-right: none; }
+
+  .dm-cell.highlight { color: var(--text); }
+  .dm-cell.good { color: var(--accent2); }
+  .dm-cell.warn { color: var(--accent4); }
+
+  /* Connector line between phases */
+  .phase-connector {
+    width: 2px;
+    height: 12px;
+    background: var(--border);
+    margin: 0 0 0 31px;
+  }
+
+  /* Reset button */
+  .reset-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 8px 16px;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 24px;
+  }
+
+  .reset-btn:hover {
+    border-color: var(--accent3);
+    color: var(--accent3);
+  }
+
+  /* Footer note */
+  .footer-note {
+    margin-top: 48px;
+    padding: 20px 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-dim);
+    line-height: 1.7;
+    border-left: 3px solid var(--accent4);
+  }
+
+  .footer-note strong { color: var(--accent4); }
+
+  @media (max-width: 600px) {
+    .blueprint-stats { display: none; }
+    .tabs { flex-wrap: wrap; }
+    .dm-row { grid-template-columns: 1fr; }
+    .dm-cell { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="tag">// system design blueprints</div>
+    <h1>The Expert's<br><span>Design Skeleton</span></h1>
+    <p>Two reusable frameworks. One set of questions per phase. Answer them in order — the architecture emerges from the answers.</p>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchBlueprint('general', event)">Blueprint 1 — General Systems</button>
+    <button class="tab-btn" onclick="switchBlueprint('data', event)">Blueprint 2 — Data-Heavy Systems</button>
+  </div>
+
+  <!-- ==================== BLUEPRINT 1 ==================== -->
+  <div class="blueprint active" id="bp-general">
+
+    <div class="blueprint-header">
+      <div class="blueprint-icon">⬡</div>
+      <div class="blueprint-meta">
+        <h2>General Scalable System Blueprint</h2>
+        <p>Applies to: chat apps, social feeds, e-commerce, ride-hailing, booking platforms,<br>SaaS products, notification systems, URL shorteners, CDN-backed apps</p>
+      </div>
+      <div class="blueprint-stats">
+        <div class="stat">
+          <span class="stat-num" id="g-done">0</span>
+          <span class="stat-label">Answered</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num" id="g-total">0</span>
+          <span class="stat-label">Total Qs</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="progress-bar">
+      <span class="progress-label">Blueprint progress</span>
+      <div class="progress-track"><div class="progress-fill" id="g-progress"></div></div>
+      <span class="progress-pct" id="g-pct">0%</span>
+    </div>
+
+    <!-- Phase 1 -->
+    <div class="phase" id="g-phase-1">
+      <div class="phase-header" onclick="togglePhase('g-phase-1')">
+        <span class="phase-num">01</span>
+        <div class="phase-icon">🎯</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Scope & Requirements</div>
+          <div class="phase-subtitle">Define what you're building before anything else</div>
+        </div>
+        <span class="phase-badge">Foundation</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>Why this comes first:</strong> Every architectural decision downstream is hostage to scope. A chat app that also needs video calls is a fundamentally different system than one that doesn't. Nail the scope, or you'll redesign twice.
+        </div>
+
+        <div class="q-group">
+          <div class="q-group-label">Functional scope</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What are the core features you must support at launch?</div>
+              <div class="q-subtext">List them. Be ruthless about cutting non-essential features. Every feature you add is an architectural constraint.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What are the explicit out-of-scope items?</div>
+              <div class="q-subtext">State them out loud. Stops scope creep during design. "Voice calls are out of scope" saves 2 hours of architecture discussion.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Who are the actors in this system?</div>
+              <div class="q-subtext">Users, admins, third-party services, automated bots? Each actor type has different access patterns and trust levels.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="q-group">
+          <div class="q-group-label">Non-functional requirements</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What is the acceptable latency for core operations?</div>
+              <div class="q-subtext">p50 / p99 targets. "Fast" is not a spec. "Under 200ms p99 for reads" is. This number decides caching strategy, database choice, CDN need.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What SLA (uptime) are you committing to?</div>
+              <div class="q-subtext">99% = 3.65 days downtime/year. 99.9% = 8.7 hours. 99.99% = 52 minutes. Each nine costs exponentially more to achieve.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Is the system consistency-critical or availability-critical?</div>
+              <div class="q-subtext">CAP theorem forces a choice under partition. Banking = consistency. Social feed = availability. Most apps fall somewhere between.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Are there regulatory or compliance constraints?</div>
+              <div class="q-subtext">GDPR, data residency (India data must stay in India), PCI-DSS for payments, HIPAA for health. These force geographic database placement.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-connector"></div>
+
+    <!-- Phase 2 -->
+    <div class="phase" id="g-phase-2">
+      <div class="phase-header" onclick="togglePhase('g-phase-2')">
+        <span class="phase-num">02</span>
+        <div class="phase-icon">📐</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Capacity Estimation</div>
+          <div class="phase-subtitle">Anchor all decisions in real numbers before drawing anything</div>
+        </div>
+        <span class="phase-badge">Numbers First</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>The rule:</strong> Estimate before you design, not after. The numbers reveal which components are load-bearing. A system handling 100 req/sec and one handling 1M req/sec are completely different designs, even for the same feature set.
+        </div>
+
+        <div class="q-group">
+          <div class="q-group-label">Traffic volume</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">How many Daily Active Users (DAUs) at launch, 6 months, 2 years?</div>
+              <div class="q-subtext">Design for 2-year projection. Build for 6-month. Ship for launch. These three numbers are your three design horizons.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What is the peak-to-average traffic ratio?</div>
+              <div class="q-subtext">Most systems have 3–10× spike over average. Your infra must handle peak, not average. A food delivery app spikes 8× at dinner time.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What is the read-to-write ratio?</div>
+              <div class="q-subtext">Twitter/Instagram: 100:1 reads. Chat: 1:1. Logs: 1:100 writes. This single ratio determines your caching depth, replica count, and DB choice.</div>
+              <span class="q-tag metric">metric</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="q-group">
+          <div class="q-group-label">Storage & data</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What is the average payload size per request / record?</div>
+              <div class="q-subtext">Text message = ~100 bytes. Tweet = ~280 bytes. Profile photo = ~500KB. These numbers × daily volume = storage growth rate.</div>
+              <span class="q-tag metric">metric</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">How fast does data grow per day / month?</div>
+              <div class="q-subtext">This tells you when a single DB node will be exhausted and forces the partitioning/sharding conversation. Know this before you pick a database.</div>
+              <span class="q-tag metric">metric</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Is there a hot data vs cold data pattern?</div>
+              <div class="q-subtext">Last 7 days of messages get 95% of reads. Older data is rarely accessed. Enables tiered storage — hot on SSD, cold on object storage.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="metric-grid">
+          <div class="metric-card"><div class="metric-card-label">Derive: RPS</div><div class="metric-card-value">DAU × ops/day ÷ 86400</div></div>
+          <div class="metric-card"><div class="metric-card-label">Derive: Peak RPS</div><div class="metric-card-value">avg RPS × spike factor</div></div>
+          <div class="metric-card"><div class="metric-card-label">Derive: Storage/day</div><div class="metric-card-value">ops/day × payload_bytes</div></div>
+          <div class="metric-card"><div class="metric-card-label">Derive: Bandwidth</div><div class="metric-card-value">peak RPS × payload_bytes</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-connector"></div>
+
+    <!-- Phase 3 -->
+    <div class="phase" id="g-phase-3">
+      <div class="phase-header" onclick="togglePhase('g-phase-3')">
+        <span class="phase-num">03</span>
+        <div class="phase-icon">🏗</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Architecture Style Decision</div>
+          <div class="phase-subtitle">Monolith vs modular monolith vs microservices — answer before picking</div>
+        </div>
+        <span class="phase-badge">One-time decision</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>The trap:</strong> Defaulting to microservices because it sounds impressive. Most systems should start as a modular monolith. Extract services only when you feel actual pain — not imagined future pain.
+        </div>
+
+        <div class="q-group">
+          <div class="q-group-label">Team & org questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">How many engineers, and will there be multiple autonomous teams?</div>
+              <div class="q-subtext">1–5 engineers → monolith. 5–20 → modular monolith. 20+ with separate teams → microservices. Conway's Law: your architecture mirrors your org chart.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Do different parts of the system have radically different scaling needs?</div>
+              <div class="q-subtext">If search needs 50× more resources than checkout, you need to scale them independently. That's the strongest technical case for microservices.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Are there any components with special infrastructure needs?</div>
+              <div class="q-subtext">Real-time connections require stateful servers. Media processing needs GPU/high-CPU nodes. ML inference needs specialized hardware. These naturally become separate services.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Are your domain boundaries clear and stable?</div>
+              <div class="q-subtext">Wrong boundaries in microservices = expensive rewrites. If domains are still evolving, a modular monolith lets you refactor without changing network contracts.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="decision-matrix">
+          <div class="dm-row dm-header">
+            <div class="dm-cell">Signal</div>
+            <div class="dm-cell">Choose</div>
+            <div class="dm-cell">Reason</div>
+          </div>
+          <div class="dm-row">
+            <div class="dm-cell highlight">≤ 5 engineers, MVP stage</div>
+            <div class="dm-cell good">Monolith</div>
+            <div class="dm-cell">Ship fast, zero overhead</div>
+          </div>
+          <div class="dm-row">
+            <div class="dm-cell highlight">5–20 engineers, growing product</div>
+            <div class="dm-cell warn">Modular monolith</div>
+            <div class="dm-cell">Clean boundaries, low ops cost</div>
+          </div>
+          <div class="dm-row">
+            <div class="dm-cell highlight">20+ engineers, teams blocking each other</div>
+            <div class="dm-cell good">Microservices</div>
+            <div class="dm-cell">Autonomous deployment per team</div>
+          </div>
+          <div class="dm-row">
+            <div class="dm-cell highlight">Physical connection limit (e.g. 100M WebSockets)</div>
+            <div class="dm-cell good">Microservices (forced)</div>
+            <div class="dm-cell">Physical constraint, not preference</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-connector"></div>
+
+    <!-- Phase 4 -->
+    <div class="phase" id="g-phase-4">
+      <div class="phase-header" onclick="togglePhase('g-phase-4')">
+        <span class="phase-num">04</span>
+        <div class="phase-icon">🗄</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Database Selection & Strategy</div>
+          <div class="phase-subtitle">Pick the right store for each data type, then decide on scaling path</div>
+        </div>
+        <span class="phase-badge">Data layer</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>The rule:</strong> Different data types belong in different stores. Don't put everything in one DB because it's familiar. Then: replicate before you shard. Shard only when replication isn't enough.
+        </div>
+
+        <div class="q-group">
+          <div class="q-group-label">Data shape questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Is your data relational (entities with relationships) or document-like / key-value?</div>
+              <div class="q-subtext">Users + orders + products with foreign keys = relational. User sessions, shopping carts, ephemeral state = key-value (Redis). Event logs, messages = wide-column (Cassandra).</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Do you need ACID transactions? Across which operations?</div>
+              <div class="q-subtext">"Deduct inventory AND charge payment" must be atomic. If yes → PostgreSQL. If you can tolerate eventual consistency → Cassandra or DynamoDB open up.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What is the primary query pattern? Point lookup, range scan, or aggregation?</div>
+              <div class="q-subtext">Point lookup (user by ID) → Hash index, Redis. Range scan (orders in date range) → B-tree index, Cassandra range partition. Aggregation → OLAP, ClickHouse.</div>
+              <span class="q-tag metric">metric</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="q-group">
+          <div class="q-group-label">Scaling path questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What is the write throughput? Can one DB primary handle it?</div>
+              <div class="q-subtext">A strong Postgres primary handles ~10K–50K writes/sec. Beyond that: sharding. Cassandra: 100K+ writes/sec natively. Know this number before picking your DB.</div>
+              <span class="q-tag metric">metric</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Can reads tolerate staleness (eventual consistency), or must they always see the latest write?</div>
+              <div class="q-subtext">"Show my profile" reads can be 500ms stale — serve from replica. "Show my bank balance after transfer" cannot — must go to primary. This decides replication type.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Does data need to be co-located geographically? (data residency laws)</div>
+              <div class="q-subtext">EU users' data must stay in EU (GDPR). Indian financial data must stay in India (RBI mandate). This forces geographic sharding or multi-region DB clusters.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What's your partitioning key if you need to shard?</div>
+              <div class="q-subtext">The key must distribute load evenly and match your most common query. user_id for user-centric data. chat_id for messages. Timestamp for time-series. Bad key = hotspots.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-connector"></div>
+
+    <!-- Phase 5 -->
+    <div class="phase" id="g-phase-5">
+      <div class="phase-header" onclick="togglePhase('g-phase-5')">
+        <span class="phase-num">05</span>
+        <div class="phase-icon">⚡</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Caching Strategy</div>
+          <div class="phase-subtitle">Decide what to cache, where, for how long, and how to invalidate</div>
+        </div>
+        <span class="phase-badge">Performance layer</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>The rule:</strong> Cache the result of expensive operations that are read frequently and change infrequently. Never cache what you don't understand — stale cache is often worse than no cache.
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">What and where to cache</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What are your most frequently read, rarely changing data objects?</div>
+              <div class="q-subtext">User profiles, product listings, config data — perfect cache candidates. A user profile read 1000×/hour but updated once/day gives you 999 cache hits per update.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Should the cache be distributed (Redis) or in-process (local memory)?</div>
+              <div class="q-subtext">Multiple app servers → must use Redis (shared state). If you cache locally, Server A's cache and Server B's cache diverge. Single server → local is faster (no network hop).</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Is there static media (images, videos, JS/CSS)? Does it need a CDN?</div>
+              <div class="q-subtext">Any content served globally + doesn't change per-user = CDN. CDN serves from the nearest PoP, removes load from your origin, and handles DDoS for free.</div>
+            </div>
+          </div>
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Invalidation questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">How stale can cached data be? → Sets your TTL.</div>
+              <div class="q-subtext">Product price can be 30s stale. Your own username shown back to you should be fresh. "How fresh" × "how expensive to recompute" = TTL.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">When data changes, can you afford to wait for TTL expiry, or do you need active invalidation?</div>
+              <div class="q-subtext">Inventory level changed? Invalidate immediately (event-driven). Country list changed? Wait for TTL — it's fine to be 5 minutes stale.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-connector"></div>
+
+    <!-- Phase 6 -->
+    <div class="phase" id="g-phase-6">
+      <div class="phase-header" onclick="togglePhase('g-phase-6')">
+        <span class="phase-num">06</span>
+        <div class="phase-icon">🔀</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Communication & Async Design</div>
+          <div class="phase-subtitle">Synchronous HTTP vs async queues vs WebSockets — when to use each</div>
+        </div>
+        <span class="phase-badge">Flow design</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>The rule:</strong> Synchronous when you need the result immediately to proceed. Async when the producer doesn't need to wait for the consumer. Real-time (WebSocket) only when you need server-push without client polling.
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Communication pattern questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Are there operations where the user must wait for a result before continuing?</div>
+              <div class="q-subtext">"Confirm payment" = synchronous, user waits. "Send email confirmation" = async, user doesn't need to wait for the email to go out. Sync = REST. Async = queue.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Are there fan-out operations where one event must trigger multiple downstream systems?</div>
+              <div class="q-subtext">"Order placed" triggers payment, inventory, notification, analytics. Don't call them sequentially — one failure breaks the chain. Publish to Kafka, each system consumes independently.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Does the client need server-initiated updates (real-time push)?</div>
+              <div class="q-subtext">Chat messages, live sports scores, collaborative editing = server must push without client polling. WebSocket or SSE. 100K+ concurrent connections changes your infra significantly.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Are there long-running background jobs (video encoding, report generation, data imports)?</div>
+              <div class="q-subtext">These cannot run in a request-response cycle. They belong in a job queue (Celery, Sidekiq, BullMQ) consumed by worker processes. The API accepts the job and returns a job_id immediately.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-connector"></div>
+
+    <!-- Phase 7 -->
+    <div class="phase" id="g-phase-7">
+      <div class="phase-header" onclick="togglePhase('g-phase-7')">
+        <span class="phase-num">07</span>
+        <div class="phase-icon">🛡</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Rate Limiting & Security</div>
+          <div class="phase-subtitle">Protect every public surface before it's exploited</div>
+        </div>
+        <span class="phase-badge">Protection layer</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>The rule:</strong> Apply rate limiting at the API Gateway layer first. Then add endpoint-specific limits at the application layer. Never apply only at application layer — by then, the damage (DB queries, compute) is already done.
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Rate limiting questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What are your sensitive endpoints? (login, OTP, payment, signup)</div>
+              <div class="q-subtext">Login = 5 attempts/minute/IP. OTP = 3/10 minutes/phone. Payment = per-user, per-card daily limits. Each needs its own limit, its own algorithm.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Who is the rate limiting subject — IP, user ID, API key, or tenant?</div>
+              <div class="q-subtext">IP-based fails at corporate NAT (500 users share one IP). User-ID is better for authenticated users. API keys for B2B. Tenant-level for multi-tenant SaaS.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What happens when a user is rate-limited? Hard reject or graceful degrade?</div>
+              <div class="q-subtext">Hard 429 for security endpoints. Cached/degraded response for read endpoints during traffic spikes. Fail-open vs fail-closed when your rate limiter (Redis) goes down.</div>
+            </div>
+          </div>
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Security questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">How are users authenticated? JWT vs session tokens vs API keys?</div>
+              <div class="q-subtext">JWT = stateless, scales horizontally, hard to revoke. Sessions = stateful, easy to revoke, needs Redis. Pick based on whether instant revocation is a requirement.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Is data encrypted at rest and in transit?</div>
+              <div class="q-subtext">HTTPS/TLS always. Sensitive fields (passwords, PII) encrypted at the application layer before storage. S3 server-side encryption for stored files.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-connector"></div>
+
+    <!-- Phase 8 -->
+    <div class="phase" id="g-phase-8">
+      <div class="phase-header" onclick="togglePhase('g-phase-8')">
+        <span class="phase-num">08</span>
+        <div class="phase-icon">🌍</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Reliability & Observability</div>
+          <div class="phase-subtitle">Design for failure — because everything fails eventually</div>
+        </div>
+        <span class="phase-badge">Ops layer</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>The rule:</strong> Every component that can fail will fail. Design every dependency with a fallback. You don't discover you need observability after the outage — you discover what you wish you had logged.
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Failure modes</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What are your single points of failure? What fails when each dies?</div>
+              <div class="q-subtext">Draw the dependency graph. Every node with one incoming edge is a SPOF. Add redundancy there first. The database primary is always a SPOF until you have failover configured.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What is your failover strategy for the database primary?</div>
+              <div class="q-subtext">How long until a replica is promoted? Manual (minutes of downtime) or automatic (seconds)? Automatic failover needs a sentinel or cluster manager configured before the incident.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Do downstream services need circuit breakers?</div>
+              <div class="q-subtext">If Service A calls Service B and B is slow, A's thread pool fills up and A goes down too. Circuit breaker stops calls to B when it's unhealthy. Prevents cascade failure.</div>
+            </div>
+          </div>
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Observability questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What are the 3–5 metrics that would alert you of a problem before users notice?</div>
+              <div class="q-subtext">Request error rate. p99 latency. DB connection pool utilization. Queue depth. Cache hit ratio. Each should have a threshold and an alert. Not dashboards — alerts.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'g')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Can you trace a single request across all services from a single trace ID?</div>
+              <div class="q-subtext">Distributed tracing (Jaeger, Datadog APM) propagates a trace ID through every service hop. Without it, debugging "why is checkout slow" across 8 services is guesswork.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="reset-btn" onclick="resetBlueprint('g')">↺ Reset all checkboxes</button>
+  </div>
+
+  <!-- ==================== BLUEPRINT 2 ==================== -->
+  <div class="blueprint" id="bp-data">
+
+    <div class="blueprint-header">
+      <div class="blueprint-icon">◈</div>
+      <div class="blueprint-meta">
+        <h2>Data-Heavy System Blueprint</h2>
+        <p>Applies to: analytics platforms, data pipelines, search engines, recommendation systems,<br>time-series systems, logging infrastructure, data warehouses, ML feature stores</p>
+      </div>
+      <div class="blueprint-stats">
+        <div class="stat">
+          <span class="stat-num" id="d-done">0</span>
+          <span class="stat-label">Answered</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num" id="d-total">0</span>
+          <span class="stat-label">Total Qs</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="progress-bar">
+      <span class="progress-label">Blueprint progress</span>
+      <div class="progress-track"><div class="progress-fill" id="d-progress"></div></div>
+      <span class="progress-pct" id="d-pct">0%</span>
+    </div>
+
+    <!-- D Phase 1 -->
+    <div class="phase" id="d-phase-1">
+      <div class="phase-header" onclick="togglePhase('d-phase-1')">
+        <span class="phase-num">01</span>
+        <div class="phase-icon">🔭</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Data Ingestion Requirements</div>
+          <div class="phase-subtitle">How data enters your system — volume, velocity, variety</div>
+        </div>
+        <span class="phase-badge">Entry point</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>The 3 Vs of data:</strong> Volume (how much), Velocity (how fast), Variety (what shape). Your answers to these three questions will select your ingestion technology — Kafka vs Kinesis vs batch ETL vs direct API writes.
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Volume & velocity</div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">How many events/records arrive per second at peak?</div>
+              <div class="q-subtext">Under 1K/sec = simple. 1K–100K/sec = Kafka or managed streaming. 100K+/sec = Kafka cluster with careful partition design. This number alone determines ingestion architecture.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Is ingestion real-time / streaming, or batch (scheduled intervals)?</div>
+              <div class="q-subtext">User clicks = streaming (sub-second latency needed). Monthly financial reports = batch. Many systems need both: streaming for real-time dashboards + batch for historical accuracy.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Can you afford to lose events, or is every event critical?</div>
+              <div class="q-subtext">Click-stream analytics = losing 0.1% of events is fine. Financial transactions = losing one is a compliance violation. "At-most-once" vs "at-least-once" vs "exactly-once" semantics matter here.</div>
+            </div>
+          </div>
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Data shape & sources</div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What are the data sources? (IoT sensors, app events, DB change streams, third-party APIs, file uploads)</div>
+              <div class="q-subtext">IoT → MQTT. App events → Kafka/Kinesis. DB changes → CDC (Debezium). File uploads → S3 trigger → Lambda. Each source type has a natural ingestion path.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Is the schema fixed or does it evolve? Who owns schema validation?</div>
+              <div class="q-subtext">Evolving schemas in high-volume streaming = schema registry (Confluent Schema Registry with Avro/Protobuf). Without schema enforcement, one bad producer breaks every downstream consumer.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-connector"></div>
+
+    <!-- D Phase 2 -->
+    <div class="phase" id="d-phase-2">
+      <div class="phase-header" onclick="togglePhase('d-phase-2')">
+        <span class="phase-num">02</span>
+        <div class="phase-icon">⚙</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Processing Requirements</div>
+          <div class="phase-subtitle">What transformations must happen to data before it's useful?</div>
+        </div>
+        <span class="phase-badge">Transform layer</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>Lambda vs Kappa architecture:</strong> Lambda runs separate batch and streaming pipelines (complex but powerful). Kappa runs everything through one streaming pipeline (simpler, fewer moving parts). Which you need depends on whether you need historical reprocessing.
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Processing pattern questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Does processing need to happen within a time window of arrival? What's the latency budget?</div>
+              <div class="q-subtext">Fraud detection: must process in under 100ms. Daily dashboard: process overnight batch is fine. Sub-second = stream processing (Flink, Spark Streaming). Minutes/hours = batch (Spark, dbt).</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Do transformations require joining streams? Across what time windows?</div>
+              <div class="q-subtext">"Join user click with product view within 30 minutes" = stateful stream join with 30-min window. Large windows = large state = expensive memory. Know your join windows before picking a stream processor.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Do you need to reprocess historical data when logic changes?</div>
+              <div class="q-subtext">If your ML feature logic changes and you need to recompute 2 years of history, you need a batch layer. Kafka retains data for configurable periods — reprocess by replaying from offset 0.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Are there aggregations (counts, sums, averages) that must be maintained in real time?</div>
+              <div class="q-subtext">Real-time "active users in last 5 minutes" counter = Redis HyperLogLog or Flink count aggregation. Updating a Postgres table for every event = write bottleneck at high volume. Choose the right aggregation store.</div>
+              <span class="q-tag metric">metric</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-connector"></div>
+
+    <!-- D Phase 3 -->
+    <div class="phase" id="d-phase-3">
+      <div class="phase-header" onclick="togglePhase('d-phase-3')">
+        <span class="phase-num">03</span>
+        <div class="phase-icon">🗄</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Storage Architecture</div>
+          <div class="phase-subtitle">Hot, warm, cold tiers — partition strategy — column vs row storage</div>
+        </div>
+        <span class="phase-badge">Data layer</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>The tiering principle:</strong> Not all data is equally hot. Recent data gets fast expensive storage. Old data gets slow cheap storage. Define the boundary between hot and cold — this drives partitioning strategy and storage cost.
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Storage model questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Are queries predominantly row-based (get one record) or column-based (aggregate a column across many records)?</div>
+              <div class="q-subtext">OLTP (get order by ID) = row-oriented storage (Postgres, MySQL). OLAP (sum revenue across all orders) = columnar storage (ClickHouse, BigQuery, Redshift). Wrong choice = 100× slower queries.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What is the time-to-hot-data boundary? After how long does data become cold?</div>
+              <div class="q-subtext">Last 30 days on fast NVMe SSD. Last year on HDD. 1+ years on S3 Glacier. Cassandra lets you move old partitions to cheaper storage tiers natively. Define the boundary in SLAs.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What is the primary partition key for the largest dataset?</div>
+              <div class="q-subtext">Time-series: partition by time bucket (year/month). User data: partition by user_id range or hash. Bad partition key = one node gets all the traffic while others sit idle. Hotspot kills performance.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Do you need ACID on writes, or is eventual consistency acceptable?</div>
+              <div class="q-subtext">Analytics data: eventual is fine — a 5-second lag in a dashboard doesn't matter. Financial records: ACID required — losing a transaction row is a compliance issue.</div>
+            </div>
+          </div>
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Retention & compliance</div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">How long must data be retained? Who has the right to delete it?</div>
+              <div class="q-subtext">GDPR right-to-erasure means users can request deletion. If their user_id is a partition key, you can't just drop one row efficiently — design for soft delete + async purge, or tenant-isolated storage.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-connector"></div>
+
+    <!-- D Phase 4 -->
+    <div class="phase" id="d-phase-4">
+      <div class="phase-header" onclick="togglePhase('d-phase-4')">
+        <span class="phase-num">04</span>
+        <div class="phase-icon">🔍</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Query & Access Patterns</div>
+          <div class="phase-subtitle">How data exits the system — who reads it, how often, how fast it must be</div>
+        </div>
+        <span class="phase-badge">Read layer</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>The rule:</strong> Design your data model around your read patterns, not your write patterns. You can always normalize data on write — but you pay for bad read models on every single query at scale.
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Query pattern questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What are the top 5 queries by frequency? Write them out.</div>
+              <div class="q-subtext">If your most frequent query is "events by user_id in the last 24h", your partition key must be user_id and your sort key must be timestamp. The query drives the schema, not the other way around.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Are queries ad-hoc (any filter, any column) or pre-defined (same patterns every time)?</div>
+              <div class="q-subtext">Ad-hoc analytics = Elasticsearch or ClickHouse with wide indexes. Pre-defined queries = optimize schema specifically for those queries, avoid full-table scans. Ad-hoc at scale is expensive — cache aggressively.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What is the latency budget for reads? Sub-second for user-facing, or minutes for batch reports?</div>
+              <div class="q-subtext">User-facing dashboard under 200ms = pre-aggregate and cache, or use in-memory OLAP (Druid). Internal reports in 5 minutes = Spark batch job on data lake. Never serve raw SQL aggregation over billions of rows to users.</div>
+              <span class="q-tag metric">metric</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Do you need full-text search? Fuzzy matching? Faceted filtering?</div>
+              <div class="q-subtext">These queries are not what SQL databases are built for. Elasticsearch or OpenSearch for text search + facets. Running LIKE '%keyword%' on 100M rows is a database killer.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-connector"></div>
+
+    <!-- D Phase 5 -->
+    <div class="phase" id="d-phase-5">
+      <div class="phase-header" onclick="togglePhase('d-phase-5')">
+        <span class="phase-num">05</span>
+        <div class="phase-icon">📊</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Replication & Partitioning Decisions</div>
+          <div class="phase-subtitle">Scale reads with replicas. Scale writes and size with sharding.</div>
+        </div>
+        <span class="phase-badge">Scale decisions</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>The checklist before sharding:</strong> Index optimization → caching → read replicas → vertical scaling → archiving. Only after all five are exhausted does sharding make sense. Sharding is a permanent, expensive commitment.
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Replication questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What is your data loss tolerance? (RPO — Recovery Point Objective)</div>
+              <div class="q-subtext">RPO = how much data you can afford to lose if primary crashes. Zero = synchronous replication. Seconds = semi-sync. Minutes = async. Financial: zero. Analytics: minutes is fine. Pick your replication mode from RPO.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What is your maximum acceptable downtime if primary fails? (RTO — Recovery Time Objective)</div>
+              <div class="q-subtext">RTO = time from failure to recovery. 30 seconds = automated failover pre-configured. 30 minutes = manual promotion. Your RTO determines whether you invest in Patroni/Orchestrator or handle failover manually.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Are reads predominantly on recent data or historical? Can reads tolerate replication lag?</div>
+              <div class="q-subtext">"Show me last week's analytics" from a replica = fine, 1-second lag doesn't matter. "Show me the balance right after my transfer" = must go to primary. Route reads intelligently based on staleness tolerance.</div>
+            </div>
+          </div>
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Sharding questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Is write throughput saturating a single primary? Have you measured this?</div>
+              <div class="q-subtext">Sharding adds irreversible complexity. "It might get slow" is not enough. Measure CPU, disk I/O, and write latency on the primary first. Add the optimization checklist before sharding.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Will your most common queries ever need to span multiple shards?</div>
+              <div class="q-subtext">Cross-shard queries = scatter-gather = expensive. If "top 10 customers by revenue globally" is a common query, sharding by customer_id makes it require hitting every shard. Design to avoid this.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Is your shard key at risk of creating hotspots?</div>
+              <div class="q-subtext">Timestamp-based shard key = all writes always hit the latest shard. user_id hash = uniform distribution but no range queries. Celebrity problem: one shard key (a viral user) gets 10× the traffic. Plan mitigation.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-connector"></div>
+
+    <!-- D Phase 6 -->
+    <div class="phase" id="d-phase-6">
+      <div class="phase-header" onclick="togglePhase('d-phase-6')">
+        <span class="phase-num">06</span>
+        <div class="phase-icon">🔄</div>
+        <div class="phase-title-block">
+          <div class="phase-title">Pipeline Reliability & Data Quality</div>
+          <div class="phase-subtitle">What happens when something breaks in the middle of the pipeline</div>
+        </div>
+        <span class="phase-badge">Reliability</span>
+        <span class="phase-chevron">▶</span>
+      </div>
+      <div class="phase-body">
+        <div class="decision-note">
+          <strong>The rule:</strong> Pipelines fail silently. A queue that's processing 10% of events looks healthy until you notice metrics are off by 90%. Design explicit failure detection, dead letter queues, and idempotent consumers from day one.
+        </div>
+        <div class="q-group">
+          <div class="q-group-label">Failure handling questions</div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">What happens to an event if a consumer fails mid-processing?</div>
+              <div class="q-subtext">If consumer crashes after reading but before writing → event lost (at-most-once). Must re-read from queue → event reprocessed (at-least-once). Consumer must be idempotent: processing the same event twice produces the same result.</div>
+              <span class="q-tag critical">critical</span>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Do you have a Dead Letter Queue (DLQ) for events that fail after max retries?</div>
+              <div class="q-subtext">Without DLQ: one poison-pill message blocks the entire queue indefinitely. With DLQ: bad events are parked, main queue continues. DLQ must be monitored with alerts — a growing DLQ means systematic failure.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">How do you detect and measure data quality degradation?</div>
+              <div class="q-subtext">Row count checks between source and destination. Null rate monitoring on critical columns. Schema drift alerts. A data quality check that runs after every pipeline step is worth more than 10 dashboards.</div>
+            </div>
+          </div>
+          <div class="q-item" onclick="toggleQ(this, 'd')">
+            <div class="q-check">✓</div>
+            <div class="q-text-block">
+              <div class="q-text">Can the pipeline be paused and resumed without data loss? Can you replay from a checkpoint?</div>
+              <div class="q-subtext">Kafka offsets give you this for free — consumers commit their position; restart from last committed offset. Batch pipelines need checkpointing (last successfully processed file/date). Know your replay strategy before you need it.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button class="reset-btn" onclick="resetBlueprint('d')">↺ Reset all checkboxes</button>
+  </div>
+
+  <div class="footer-note">
+    <strong>The meta-principle behind both blueprints:</strong> In system design, every tool is an answer to a question. Kafka answers "how do I decouple these services?" Redis answers "how do I serve this in under 1ms?" Cassandra answers "how do I write 100K records/sec without sharding complexity?" Before picking any technology, make sure you have already asked — and answered — the question it solves. A technology chosen without a backing question is architecture astronautics.
+  </div>
+
+</div>
+
+<script>
+  const counts = { g: { done: 0, total: 0 }, d: { done: 0, total: 0 } };
+
+  function init() {
+    ['g', 'd'].forEach(prefix => {
+      const items = document.querySelectorAll(`#bp-${prefix === 'g' ? 'general' : 'data'} .q-item`);
+      counts[prefix].total = items.length;
+      document.getElementById(`${prefix}-total`).textContent = items.length;
+    });
+    updateProgress('g');
+    updateProgress('d');
+  }
+
+  function togglePhase(id) {
+    const phase = document.getElementById(id);
+    phase.classList.toggle('open');
+    updatePhaseState(id);
+  }
+
+  function updatePhaseState(id) {
+    const phase = document.getElementById(id);
+    const items = phase.querySelectorAll('.q-item');
+    const checked = phase.querySelectorAll('.q-item.checked').length;
+    phase.classList.remove('phase-done', 'phase-active');
+    if (checked === items.length && items.length > 0) phase.classList.add('phase-done');
+    else if (checked > 0) phase.classList.add('phase-active');
+    const badge = phase.querySelector('.phase-badge');
+    if (checked === items.length && items.length > 0) {
+      badge.textContent = '✓ Complete';
+    }
+  }
+
+  function toggleQ(el, prefix) {
+    el.classList.toggle('checked');
+    const bp = prefix === 'g' ? 'general' : 'data';
+    const done = document.querySelectorAll(`#bp-${bp} .q-item.checked`).length;
+    counts[prefix].done = done;
+    document.getElementById(`${prefix}-done`).textContent = done;
+    updateProgress(prefix);
+    const phase = el.closest('.phase');
+    updatePhaseState(phase.id);
+  }
+
+  function updateProgress(prefix) {
+    const { done, total } = counts[prefix];
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    document.getElementById(`${prefix}-progress`).style.width = pct + '%';
+    document.getElementById(`${prefix}-pct`).textContent = pct + '%';
+  }
+
+  function switchBlueprint(which, e) {
+    document.querySelectorAll('.blueprint').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(`bp-${which}`).classList.add('active');
+    e.target.classList.add('active');
+  }
+
+  function resetBlueprint(prefix) {
+    const bp = prefix === 'g' ? 'general' : 'data';
+    document.querySelectorAll(`#bp-${bp} .q-item`).forEach(item => {
+      item.classList.remove('checked');
+    });
+    counts[prefix].done = 0;
+    document.getElementById(`${prefix}-done`).textContent = 0;
+    updateProgress(prefix);
+    document.querySelectorAll(`#bp-${bp} .phase`).forEach(phase => {
+      phase.classList.remove('phase-done', 'phase-active');
+    });
+  }
+
+  init();
+</script>
+</body>
+</html>

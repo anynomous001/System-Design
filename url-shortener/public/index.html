@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>URL Shortener</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0f0f0f;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #e5e5e5;
+      padding: 24px;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 540px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      font-size: 0.875rem;
+      color: #666;
+      margin-bottom: 32px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    input[type="url"] {
+      flex: 1;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 0.9rem;
+      color: #e5e5e5;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="url"]::placeholder { color: #444; }
+
+    input[type="url"]:focus { border-color: #555; }
+
+    button {
+      background: #fff;
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+    }
+
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Result box */
+    .result {
+      margin-top: 20px;
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 16px;
+      display: none;
+    }
+
+    .result.visible { display: block; }
+
+    .result-label {
+      font-size: 0.75rem;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .result-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .short-url {
+      flex: 1;
+      font-size: 1rem;
+      font-weight: 500;
+      color: #fff;
+      text-decoration: none;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .short-url:hover { text-decoration: underline; }
+
+    .copy-btn {
+      background: #2a2a2a;
+      color: #e5e5e5;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .copy-btn:hover { opacity: 1; background: #333; }
+
+    .expiry {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: #444;
+    }
+
+    /* Error */
+    .error {
+      margin-top: 12px;
+      font-size: 0.85rem;
+      color: #f87171;
+      display: none;
+    }
+
+    .error.visible { display: block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>URL Shortener</h1>
+    <p class="subtitle">Paste a long URL and get a short link instantly.</p>
+
+    <div class="input-row">
+      <input type="url" id="urlInput" placeholder="https://example.com/very/long/url..." />
+      <button id="shortenBtn" onclick="shorten()">Shorten</button>
+    </div>
+
+    <p class="error" id="errorMsg"></p>
+
+    <div class="result" id="result">
+      <p class="result-label">Short URL</p>
+      <div class="result-row">
+        <a class="short-url" id="shortUrl" href="#" target="_blank"></a>
+        <button class="copy-btn" id="copyBtn" onclick="copy()">Copy</button>
+      </div>
+      <p class="expiry" id="expiry"></p>
+    </div>
+  </div>
+
+  <script>
+    const input   = document.getElementById('urlInput');
+    const btn     = document.getElementById('shortenBtn');
+    const result  = document.getElementById('result');
+    const shortEl = document.getElementById('shortUrl');
+    const copyBtn = document.getElementById('copyBtn');
+    const expiry  = document.getElementById('expiry');
+    const errorEl = document.getElementById('errorMsg');
+
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') shorten(); });
+
+    async function shorten() {
+      const url = input.value.trim();
+      if (!url) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Shortening...';
+      errorEl.classList.remove('visible');
+      result.classList.remove('visible');
+
+      try {
+        const res = await fetch('/shorten', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          showError(data.error || 'Something went wrong');
+          return;
+        }
+
+        shortEl.textContent = data.shortUrl;
+        shortEl.href = data.shortUrl;
+        expiry.textContent = `Expires ${new Date(data.expiresAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+        copyBtn.textContent = 'Copy';
+        result.classList.add('visible');
+      } catch (err) {
+        showError('Network error — is the server running?');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Shorten';
+      }
+    }
+
+    function copy() {
+      navigator.clipboard.writeText(shortEl.textContent).then(() => {
+        copyBtn.textContent = 'Copied!';
+        setTimeout(() => (copyBtn.textContent = 'Copy'), 2000);
+      });
+    }
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.classList.add('visible');
+    }
+  </script>
+</body>
+</html>
