@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 const { connect } = require('./redisClient');
 const rateLimiter = require('./rateLimiter');
 
@@ -7,6 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Apply rate limiter globally to all routes
 app.use(rateLimiter);

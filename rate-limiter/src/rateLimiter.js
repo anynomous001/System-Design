@@ -36,10 +36,18 @@ async function rateLimiter(req, res, next) {
   res.setHeader('X-RateLimit-Window', `${WINDOW_MS / 1000}s`);
 
   if (requestCount >= MAX_REQUESTS) {
+    // Find the oldest request in the window — the window frees up when IT expires,
+    // not 60s from now. e.g. if first request was 40s ago, retry in 20s not 60s.
+    const oldest = await client.zRangeWithScores(key, 0, 0);
+    const oldestTimestamp = oldest.length ? oldest[0].score : now;
+    const retryAfterMs = (oldestTimestamp + WINDOW_MS) - now;
+    const retryAfterSec = Math.ceil(retryAfterMs / 1000);
+
+    res.setHeader('Retry-After', retryAfterSec);
     return res.status(429).json({
       error: 'Too Many Requests',
       message: `Limit of ${MAX_REQUESTS} requests per ${WINDOW_MS / 1000}s exceeded.`,
-      retryAfter: `${WINDOW_MS / 1000}s`,
+      retryAfter: retryAfterSec,
     });
   }
 

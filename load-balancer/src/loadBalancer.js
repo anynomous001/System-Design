@@ -1,5 +1,6 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 const httpProxy = require('http-proxy');
 
 const app = express();
@@ -9,9 +10,9 @@ const HEALTH_CHECK_INTERVAL_MS = 10_000; // 10 seconds
 
 // Backend server pool
 const servers = [
-  { id: 1, url: 'http://localhost:5001', healthy: true },
-  { id: 2, url: 'http://localhost:5002', healthy: true },
-  { id: 3, url: 'http://localhost:5003', healthy: true },
+  { id: 1, url: 'http://localhost:5001', healthy: true, requests: 0 },
+  { id: 2, url: 'http://localhost:5002', healthy: true, requests: 0 },
+  { id: 3, url: 'http://localhost:5003', healthy: true, requests: 0 },
 ];
 
 // ── Round Robin State ────────────────────────────────────────────────────────
@@ -61,12 +62,27 @@ proxy.on('error', (err, _req, res) => {
   res.end(JSON.stringify({ error: 'Bad Gateway', message: 'Backend server unavailable' }));
 });
 
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
 // ── Status Endpoint (must be before the catch-all proxy route) ────────────────
 app.get('/_lb/status', (_req, res) => {
   res.json({
     totalRequests: requestCounter,
-    servers: servers.map(({ id, url, healthy }) => ({ id, url, healthy })),
+    servers: servers.map(({ id, url, healthy, requests }) => ({ id, url, healthy, requests })),
   });
+});
+
+// ── Send Endpoint — fires a request to the next backend, returns routing info ──
+app.get('/_lb/send', (req, res) => {
+  const server = getNextServer();
+  if (!server) {
+    return res.status(503).json({ error: 'No healthy backend servers' });
+  }
+  res.setHeader('X-Served-By', `Server-${server.id}`);
+  server.requests++;
+  requestCounter++;
+  console.log(`[LB] Request #${requestCounter} → Server ${server.id}`);
+  res.json({ routedTo: server.id, url: server.url, requestNumber: requestCounter });
 });
 
 // ── Load Balancer Route (catch-all reverse proxy) ─────────────────────────────
@@ -81,6 +97,7 @@ app.use((req, res) => {
   res.setHeader('X-Served-By', `Server-${server.id}`);
   res.setHeader('X-Request-Number', requestCounter);
 
+  server.requests++;
   console.log(`[LB] Request #${requestCounter} → Server ${server.id} (${server.url}${req.url})`);
 
   proxy.web(req, res, { target: server.url });

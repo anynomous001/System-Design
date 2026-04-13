@@ -10,6 +10,7 @@
     "dev:backends": "nodemon src/backends.js"
   },
   "dependencies": {
+    "dotenv": "^17.4.2",
     "express": "^4.18.2",
     "http-proxy": "^1.18.1"
   },
