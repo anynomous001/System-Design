@@ -35,20 +35,30 @@ async function rateLimiter(req, res, next) {
   res.setHeader('X-RateLimit-Remaining', Math.max(0, MAX_REQUESTS - requestCount - 1));
   res.setHeader('X-RateLimit-Window', `${WINDOW_MS / 1000}s`);
 
-  if (requestCount >= MAX_REQUESTS) {
-    // Find the oldest request in the window — the window frees up when IT expires,
-    // not 60s from now. e.g. if first request was 40s ago, retry in 20s not 60s.
+  // Helper: time in seconds until the oldest entry in the window expires
+  async function getResetSec() {
     const oldest = await client.zRangeWithScores(key, 0, 0);
     const oldestTimestamp = oldest.length ? oldest[0].score : now;
-    const retryAfterMs = (oldestTimestamp + WINDOW_MS) - now;
-    const retryAfterSec = Math.ceil(retryAfterMs / 1000);
+    return Math.max(1, Math.ceil(((oldestTimestamp + WINDOW_MS) - now) / 1000));
+  }
 
-    res.setHeader('Retry-After', retryAfterSec);
+  if (requestCount >= MAX_REQUESTS) {
+    // Blocked — tell the client exactly when the oldest slot frees up
+    const resetSec = await getResetSec();
+    res.setHeader('Retry-After', resetSec);
+    res.setHeader('X-RateLimit-Reset', resetSec);
     return res.status(429).json({
       error: 'Too Many Requests',
       message: `Limit of ${MAX_REQUESTS} requests per ${WINDOW_MS / 1000}s exceeded.`,
-      retryAfter: retryAfterSec,
+      retryAfter: resetSec,
     });
+  }
+
+  // Last slot just consumed — send reset time so the UI can start the countdown
+  // immediately on the 5th successful request, without waiting for a 429
+  if (requestCount === MAX_REQUESTS - 1) {
+    const resetSec = await getResetSec();
+    res.setHeader('X-RateLimit-Reset', resetSec);
   }
 
   next();

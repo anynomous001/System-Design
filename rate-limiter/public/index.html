@@ -215,46 +215,62 @@
     function startResetCountdown(seconds) {
       clearInterval(resetTimer);
       secondsLeft = seconds;
-      resetInfo.textContent = `Window resets in ${secondsLeft}s`;
-      resetTimer = setInterval(() => {
+      resetInfo.textContent = `1 slot frees in ${secondsLeft}s`;
+      resetTimer = setInterval(async () => {
         secondsLeft--;
         if (secondsLeft <= 0) {
           clearInterval(resetTimer);
           resetInfo.textContent = '';
-          remaining = MAX;
-          setLevel(MAX);
-          sendBtn.disabled = false;
-          sendBtn.textContent = 'Send Request';
+          // Re-poll the server to get the real remaining count —
+          // sliding window freed exactly 1 slot, not all 5
+          await syncState();
         } else {
-          resetInfo.textContent = `Window resets in ${secondsLeft}s`;
+          resetInfo.textContent = `1 slot frees in ${secondsLeft}s`;
         }
       }, 1000);
+    }
+
+    // Poll current state from the server without consuming a request slot
+    async function syncState() {
+      try {
+        const res = await fetch('/api/status');
+        const rem = parseInt(res.headers.get('x-ratelimit-remaining') ?? String(MAX), 10);
+        remaining = rem;
+        setLevel(remaining);
+        if (remaining > 0) {
+          sendBtn.disabled = false;
+          sendBtn.textContent = 'Send Request';
+        }
+      } catch {}
     }
 
     async function sendRequest() {
       sendBtn.disabled = true;
       try {
         const res = await fetch('/api/hello');
-        const rem = parseInt(res.headers.get('x-ratelimit-remaining') ?? '0', 10);
+        const rem    = parseInt(res.headers.get('x-ratelimit-remaining') ?? '0', 10);
+        // X-RateLimit-Reset is set by the server on both the last allowed request
+        // (remaining = 0) AND on 429 responses — always anchored to oldest entry
+        const resetSec = parseInt(res.headers.get('x-ratelimit-reset') ?? '0', 10);
 
         if (res.ok) {
           remaining = rem;
           setLevel(remaining);
           addLog(true, `GET /api/hello — ${remaining} request${remaining !== 1 ? 's' : ''} left`);
-          if (remaining > 0) sendBtn.disabled = false;
-          else {
+          if (remaining > 0) {
+            sendBtn.disabled = false;
+          } else {
+            // 5th request just used the last slot — start countdown from header value
             sendBtn.textContent = 'Limit reached';
-            const data = await res.json();
-            startResetCountdown(data.retryAfter ?? 60);
+            startResetCountdown(resetSec || 60);
           }
         } else {
           const data = await res.json();
-          const retryAfter = data.retryAfter ?? 60;
           remaining = 0;
           setLevel(0);
           sendBtn.textContent = 'Limit reached';
-          addLog(false, `Too Many Requests — retry in ${retryAfter}s`);
-          startResetCountdown(retryAfter);
+          addLog(false, `Too Many Requests — retry in ${data.retryAfter}s`);
+          startResetCountdown(data.retryAfter || resetSec || 60);
         }
       } catch {
         addLog(false, 'Network error');
