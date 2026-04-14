@@ -103,4 +103,4 @@ def debug_store():
 if __name__ == "__main__":
     print("Rate Limiter running on http://localhost:5001")
     print(f"Limit: {LIMIT} requests per {WINDOW_SEC} seconds per IP")
-    app.run(port=5001, debug=True)
+    app.run(port=5001, debug=False)

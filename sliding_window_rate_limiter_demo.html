@@ -1,0 +1,285 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.wrap{padding:1.5rem 0}
+.controls{display:flex;gap:12px;align-items:center;margin-bottom:1.5rem;flex-wrap:wrap}
+.btn{padding:8px 16px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);cursor:pointer;font-size:13px;font-weight:500;transition:background 0.15s}
+.btn:hover{background:var(--color-background-secondary)}
+.btn:active{transform:scale(0.98)}
+.btn.primary{background:var(--color-background-info);color:var(--color-text-info);border-color:var(--color-border-info)}
+.btn.danger{background:var(--color-background-danger);color:var(--color-text-danger);border-color:var(--color-border-danger)}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+.status-bar{display:flex;gap:12px;margin-bottom:1.5rem;flex-wrap:wrap}
+.stat{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 16px;flex:1;min-width:100px}
+.stat-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.04em}
+.stat-val{font-size:22px;font-weight:500;color:var(--color-text-primary)}
+.stat-val.warn{color:var(--color-text-warning)}
+.stat-val.ok{color:var(--color-text-success)}
+.stat-val.danger{color:var(--color-text-danger)}
+.timeline-wrap{background:var(--color-background-secondary);border-radius:var(--border-radius-lg);padding:1.25rem;margin-bottom:1rem;overflow:hidden}
+.tl-header{display:flex;justify-content:space-between;font-size:11px;color:var(--color-text-tertiary);margin-bottom:12px}
+.tl-track{position:relative;height:48px;background:var(--color-background-primary);border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);overflow:hidden}
+.tl-window{position:absolute;top:0;height:100%;background:rgba(59,130,246,0.08);border-left:2px solid #378ADD;border-right:2px solid #378ADD;transition:left 0.3s,width 0.3s;pointer-events:none}
+.tl-req{position:absolute;top:50%;transform:translateY(-50%);width:10px;height:10px;border-radius:50%;transition:opacity 0.3s}
+.tl-req.inside{background:#1D9E75}
+.tl-req.outside{background:#D3D1C7;opacity:0.4}
+.tl-req.blocked{background:#E24B4A}
+.tl-label{font-size:10px;color:var(--color-text-tertiary);text-align:center;margin-top:6px}
+.window-label{font-size:11px;color:#185FA5;margin-top:8px;font-weight:500}
+.log{border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow:hidden;max-height:220px;overflow-y:auto}
+.log-row{display:flex;align-items:flex-start;gap:12px;padding:10px 14px;border-bottom:0.5px solid var(--color-border-tertiary);font-size:12px;line-height:1.5}
+.log-row:last-child{border-bottom:none}
+.log-row.allowed{border-left:3px solid #1D9E75}
+.log-row.blocked{border-left:3px solid #E24B4A}
+.log-time{color:var(--color-text-tertiary);min-width:52px;font-family:var(--font-mono);font-size:11px;padding-top:1px}
+.log-icon{font-size:14px;min-width:18px}
+.log-body{color:var(--color-text-primary);flex:1}
+.log-body strong{font-weight:500}
+.badge{display:inline-block;padding:1px 7px;border-radius:99px;font-size:10px;font-weight:500;margin-left:6px}
+.badge.ok{background:var(--color-background-success);color:var(--color-text-success)}
+.badge.no{background:var(--color-background-danger);color:var(--color-text-danger)}
+.badge.gray{background:var(--color-background-secondary);color:var(--color-text-secondary)}
+.legend{display:flex;gap:16px;margin-bottom:1rem;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--color-text-secondary)}
+.dot{width:10px;height:10px;border-radius:50%}
+.step-hint{font-size:12px;color:var(--color-text-secondary);padding:10px 14px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);margin-bottom:1rem;line-height:1.6}
+</style>
+
+<div class="wrap">
+  <h2 style="sr-only">Sliding window rate limiter interactive demo</h2>
+
+  <div class="step-hint" id="hint">
+    Press <strong>Send Request</strong> to simulate a request from user IP <code style="font-family:var(--font-mono);font-size:11px;background:var(--color-background-secondary);padding:1px 5px;border-radius:4px">192.168.1.1</code>. The limit is <strong>5 requests per 60-second window</strong>.
+  </div>
+
+  <div class="status-bar">
+    <div class="stat">
+      <div class="stat-label">Clock time</div>
+      <div class="stat-val" id="s-clock">00:00</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Requests in window</div>
+      <div class="stat-val ok" id="s-count">0 / 5</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Window covers</div>
+      <div class="stat-val" id="s-window" style="font-size:13px;padding-top:4px">—</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Last decision</div>
+      <div class="stat-val" id="s-decision">—</div>
+    </div>
+  </div>
+
+  <div class="timeline-wrap">
+    <div class="tl-header">
+      <span id="tl-left">t = 0s</span>
+      <span style="color:var(--color-text-secondary);font-size:11px">— timeline (last 90s) —</span>
+      <span id="tl-right">now</span>
+    </div>
+    <div class="tl-track" id="tl-track">
+      <div class="tl-window" id="tl-window"></div>
+    </div>
+    <div class="tl-label">Each circle = one request &nbsp;|&nbsp; <span style="color:#1D9E75">green = inside window</span> &nbsp;|&nbsp; <span style="color:#888">gray = expired</span> &nbsp;|&nbsp; <span style="color:#E24B4A">red = blocked</span></div>
+    <div class="window-label" id="win-label">Sliding window: waiting for first request</div>
+  </div>
+
+  <div class="controls">
+    <button class="btn primary" id="btn-send" onclick="sendReq()">Send request</button>
+    <button class="btn" onclick="tick()">Advance time +10s</button>
+    <button class="btn danger" onclick="resetAll()">Reset</button>
+  </div>
+
+  <div class="log" id="log">
+    <div class="log-row" style="border-left:3px solid var(--color-border-tertiary)">
+      <span class="log-time">—</span>
+      <span class="log-body" style="color:var(--color-text-secondary)">Log is empty. Send a request to begin.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const LIMIT = 5;
+const WINDOW = 60;
+const TL_SPAN = 90;
+
+let now = 0;
+let requests = [];
+let totalBlocked = 0;
+
+function fmt(t) {
+  const m = Math.floor(t / 60);
+  const s = t % 60;
+  return (m > 0 ? m + ':' : '') + String(s).padStart(2, '0');
+}
+
+function windowRequests() {
+  return requests.filter(r => r.t >= now - WINDOW && !r.blocked);
+}
+
+function render() {
+  document.getElementById('s-clock').textContent = fmt(now);
+
+  const inWin = windowRequests();
+  const count = inWin.length;
+  const el = document.getElementById('s-count');
+  el.textContent = count + ' / ' + LIMIT;
+  el.className = 'stat-val ' + (count >= LIMIT ? 'danger' : count >= 4 ? 'warn' : 'ok');
+
+  if (requests.length > 0) {
+    const winStart = Math.max(0, now - WINDOW);
+    document.getElementById('s-window').textContent = 't=' + fmt(winStart) + ' → t=' + fmt(now);
+  } else {
+    document.getElementById('s-window').textContent = '—';
+  }
+
+  renderTimeline();
+}
+
+function renderTimeline() {
+  const track = document.getElementById('tl-track');
+  const winEl = document.getElementById('tl-window');
+  const W = track.clientWidth || 600;
+
+  const tStart = Math.max(0, now - TL_SPAN);
+  const tEnd = now;
+  const span = TL_SPAN;
+
+  const winStart = Math.max(0, now - WINDOW);
+  const wLeft = ((winStart - tStart) / span) * 100;
+  const wRight = ((now - tStart) / span) * 100;
+  winEl.style.left = Math.max(0, wLeft) + '%';
+  winEl.style.width = Math.max(0, wRight - Math.max(0, wLeft)) + '%';
+
+  const dots = track.querySelectorAll('.tl-req');
+  dots.forEach(d => d.remove());
+
+  requests.forEach(r => {
+    if (r.t < tStart) return;
+    const pct = ((r.t - tStart) / span) * 100;
+    const dot = document.createElement('div');
+    dot.className = 'tl-req ' + (r.blocked ? 'blocked' : r.t >= now - WINDOW ? 'inside' : 'outside');
+    dot.style.left = 'calc(' + pct + '% - 5px)';
+    dot.title = 't=' + fmt(r.t) + (r.blocked ? ' [blocked]' : '');
+    track.appendChild(dot);
+  });
+
+  document.getElementById('tl-left').textContent = 't=' + fmt(Math.max(0, now - TL_SPAN));
+  document.getElementById('tl-right').textContent = 't=' + fmt(now) + ' (now)';
+
+  const inWin = windowRequests();
+  if (inWin.length > 0) {
+    document.getElementById('win-label').textContent =
+      'Window: t=' + fmt(Math.max(0, now - WINDOW)) + ' → t=' + fmt(now) +
+      ' | ' + inWin.length + ' request' + (inWin.length !== 1 ? 's' : '') + ' counted';
+  } else if (requests.length > 0) {
+    document.getElementById('win-label').textContent =
+      'Window: t=' + fmt(Math.max(0, now - WINDOW)) + ' → t=' + fmt(now) + ' | 0 requests (all expired out)';
+  }
+}
+
+function addLog(t, allowed, count, removed, msg) {
+  const log = document.getElementById('log');
+  const empty = log.querySelector('.log-row[style]');
+  if (empty) empty.remove();
+
+  const row = document.createElement('div');
+  row.className = 'log-row ' + (allowed ? 'allowed' : 'blocked');
+  row.innerHTML =
+    '<span class="log-time">t=' + fmt(t) + '</span>' +
+    '<span class="log-body">' + msg + '</span>';
+  log.appendChild(row);
+  log.scrollTop = log.scrollHeight;
+}
+
+function sendReq() {
+  const inWin = windowRequests();
+  const count = inWin.length;
+  const removed = requests.filter(r => r.t < now - WINDOW && !r.blocked).length;
+
+  const allowed = count < LIMIT;
+  const req = { t: now, blocked: !allowed };
+  requests.push(req);
+
+  let msg = '';
+  if (removed > 0) {
+    msg += '<span class="badge gray">' + removed + ' old timestamp' + (removed > 1 ? 's' : '') + ' pruned</span> ';
+  }
+  if (allowed) {
+    msg += 'Request <strong>allowed</strong>. Window had <strong>' + count + '</strong> request' + (count !== 1 ? 's' : '') + ' → now <strong>' + (count + 1) + '/5</strong>.<span class="badge ok">200 OK</span>';
+  } else {
+    totalBlocked++;
+    msg += 'Request <strong>blocked</strong>. Window already has <strong>' + count + '/5</strong> requests. Limit reached.<span class="badge no">429 Too Many Requests</span>';
+  }
+
+  const decEl = document.getElementById('s-decision');
+  if (allowed) {
+    decEl.textContent = '200 OK';
+    decEl.className = 'stat-val ok';
+  } else {
+    decEl.textContent = '429 Blocked';
+    decEl.className = 'stat-val danger';
+  }
+
+  const hint = document.getElementById('hint');
+  if (!allowed) {
+    hint.innerHTML = 'Limit reached! Wait for old requests to slide out of the 60-second window, or press <strong>Advance time</strong> to move the clock forward and watch them expire.';
+  } else if (count + 1 >= 4) {
+    hint.innerHTML = 'Getting close to the limit! The window now has <strong>' + (count + 1) + '/5</strong> requests. One more and the next request will be blocked.';
+  } else {
+    hint.innerHTML = 'Request allowed. The sliding window tracks all timestamps within the last 60 seconds. Old ones get pruned automatically.';
+  }
+
+  addLog(now, allowed, count, removed, msg);
+  render();
+}
+
+function tick() {
+  now += 10;
+  const expired = requests.filter(r => r.t < now - WINDOW).length;
+  const inWin = windowRequests();
+
+  const decEl = document.getElementById('s-decision');
+  decEl.textContent = '+10s passed';
+  decEl.className = 'stat-val';
+
+  const hint = document.getElementById('hint');
+  if (inWin.length < LIMIT) {
+    hint.innerHTML = 'Time advanced to <strong>t=' + fmt(now) + '</strong>. The window now covers <strong>t=' + fmt(Math.max(0, now - WINDOW)) + ' → t=' + fmt(now) + '</strong>. Old requests have slid out — <strong>' + inWin.length + '/5</strong> remain in window.';
+  } else {
+    hint.innerHTML = 'Time advanced to <strong>t=' + fmt(now) + '</strong>. Window still has ' + inWin.length + '/5 requests. Keep advancing to let them expire.';
+  }
+
+  const log = document.getElementById('log');
+  const row = document.createElement('div');
+  row.className = 'log-row';
+  row.style.borderLeft = '3px solid var(--color-border-tertiary)';
+  row.innerHTML =
+    '<span class="log-time">t=' + fmt(now) + '</span>' +
+    '<span class="log-body" style="color:var(--color-text-secondary)">Clock advanced +10s. Window now: t=' +
+    fmt(Math.max(0, now - WINDOW)) + ' → t=' + fmt(now) + '. In-window count: <strong>' + inWin.length + '/5</strong>.</span>';
+  log.appendChild(row);
+  log.scrollTop = log.scrollHeight;
+
+  render();
+}
+
+function resetAll() {
+  now = 0;
+  requests = [];
+  totalBlocked = 0;
+  document.getElementById('s-clock').textContent = '00:00';
+  document.getElementById('s-count').textContent = '0 / 5';
+  document.getElementById('s-count').className = 'stat-val ok';
+  document.getElementById('s-window').textContent = '—';
+  document.getElementById('s-decision').textContent = '—';
+  document.getElementById('s-decision').className = 'stat-val';
+  document.getElementById('win-label').textContent = 'Sliding window: waiting for first request';
+  document.getElementById('hint').innerHTML = 'Press <strong>Send Request</strong> to simulate a request from user IP <code style="font-family:var(--font-mono);font-size:11px;background:var(--color-background-secondary);padding:1px 5px;border-radius:4px">192.168.1.1</code>. The limit is <strong>5 requests per 60-second window</strong>.';
+  document.getElementById('log').innerHTML = '<div class="log-row" style="border-left:3px solid var(--color-border-tertiary)"><span class="log-time">—</span><span class="log-body" style="color:var(--color-text-secondary)">Log is empty. Send a request to begin.</span></div>';
+  renderTimeline();
+}
+
+render();
+</script>

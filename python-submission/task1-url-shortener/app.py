@@ -9,12 +9,11 @@ Endpoints:
 
 import hashlib
 import sqlite3
-import os
 from flask import Flask, request, jsonify, redirect, g
 
 app = Flask(__name__)
 DATABASE = "urls.db"
-BASE_URL = "http://localhost:5000"
+BASE_URL = "http://localhost:5005"
 
 BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 
@@ -30,7 +29,7 @@ def get_db():
 
 
 @app.teardown_appcontext
-def close_db(error):
+def close_db(_error):
     db = g.pop("db", None)
     if db is not None:
         db.close()
@@ -143,5 +142,5 @@ def redirect_url(short_id):
 if __name__ == "__main__":
     with app.app_context():
         init_db()
-    print("URL Shortener running on http://localhost:5000")
-    app.run(port=5000, debug=True)
+    print("URL Shortener running on http://localhost:5005")
+    app.run(port=5005, debug=False)
