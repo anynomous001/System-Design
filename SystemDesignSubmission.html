@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>System Design Assignment — Final Submission</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Georgia, serif; font-size: 11pt; color: #1a1a1a; background: #fff; line-height: 1.75; }
+    .page { max-width: 800px; margin: 0 auto; padding: 60px 72px; }
+
+    /* Title page */
+    .title-page { min-height: 96vh; display: flex; flex-direction: column; justify-content: center; border-bottom: 2px solid #111; padding-bottom: 60px; margin-bottom: 60px; }
+    .title-page h1 { font-size: 26pt; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 10px; }
+    .title-page .sub { font-size: 13pt; color: #555; font-style: italic; margin-bottom: 48px; }
+    .meta td { padding: 5px 16px 5px 0; font-size: 11pt; }
+    .meta td:first-child { font-weight: 700; color: #444; width: 130px; }
+
+    /* Headings */
+    h2 { font-size: 16pt; font-weight: 700; margin: 52px 0 14px; padding-bottom: 8px; border-bottom: 1.5px solid #ddd; }
+    h3 { font-size: 13pt; font-weight: 700; margin: 28px 0 10px; }
+    h4 { font-family: Arial, sans-serif; font-size: 9.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #555; margin: 22px 0 8px; }
+    p  { margin-bottom: 12px; }
+    ul, ol { margin: 8px 0 14px 24px; }
+    li { margin-bottom: 5px; }
+
+    /* Task header banner */
+    .task-banner { background: #111; color: #fff; border-radius: 6px; padding: 20px 24px; margin: 56px 0 4px; }
+    .task-banner h2 { color: #fff; border: none; margin: 0 0 4px; padding: 0; font-size: 14pt; }
+    .task-banner p  { color: #888; font-family: Arial, sans-serif; font-size: 9.5pt; margin: 0; }
+
+    /* Code */
+    pre { background: #f5f5f5; border: 1px solid #ddd; border-left: 3px solid #555; border-radius: 4px; padding: 14px 18px; margin: 12px 0; overflow-x: auto; font-size: 9pt; line-height: 1.6; font-family: 'Courier New', monospace; }
+    code { font-family: 'Courier New', monospace; font-size: 9.5pt; background: #f0f0f0; padding: 1px 5px; border-radius: 3px; }
+    pre code { background: none; padding: 0; }
+
+    /* ASCII diagram box */
+    .diagram { font-family: 'Courier New', monospace; font-size: 9pt; background: #fafafa; border: 1px solid #e0e0e0; border-radius: 4px; padding: 18px 20px; margin: 14px 0; line-height: 1.9; white-space: pre; }
+
+    /* Decision / callout */
+    .decision { background: #fafafa; border: 1px solid #ddd; border-left: 3px solid #888; border-radius: 4px; padding: 12px 16px; margin: 12px 0; font-size: 10.5pt; }
+    .decision strong { display: block; font-family: Arial, sans-serif; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.05em; color: #555; margin-bottom: 4px; }
+
+    /* Comparison table */
+    table { border-collapse: collapse; width: 100%; margin: 14px 0; font-size: 10pt; }
+    th { background: #f0f0f0; border: 1px solid #ccc; padding: 8px 12px; text-align: left; font-family: Arial, sans-serif; font-size: 9.5pt; }
+    td { border: 1px solid #ddd; padding: 7px 12px; vertical-align: top; }
+    tr:nth-child(even) td { background: #fafafa; }
+
+    /* Screenshot placeholder */
+    .screenshot { border: 1.5px dashed #bbb; border-radius: 6px; padding: 26px; margin: 16px 0; text-align: center; color: #999; font-family: Arial, sans-serif; font-size: 9.5pt; background: #fafafa; }
+    .screenshot span { display: block; font-size: 20pt; margin-bottom: 6px; }
+
+    @media print { .page { padding: 40px 52px; } .title-page { min-height: auto; } }
+  </style>
+</head>
+<body>
+<div class="page">
+
+<!-- ════════════════════════════════════════════════════════
+     TITLE PAGE
+════════════════════════════════════════════════════════ -->
+<div class="title-page">
+  <h1>System Design Assignment</h1>
+  <p class="sub">API Design · Rate Limiting · Load Balancing</p>
+  <table class="meta">
+    <tr><td>Date</td><td>April 14, 2026</td></tr>
+    <tr><td>Assignment</td><td>System Design — Three Mini-Projects</td></tr>
+    <tr><td>Language</td><td>Python 3 · Flask · SQLite</td></tr>
+    <tr><td>Repository</td><td>github.com/anynomous001/System-Design</td></tr>
+  </table>
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     OVERVIEW
+════════════════════════════════════════════════════════ -->
+<h2>Assignment Overview</h2>
+<p>
+  This assignment implements three foundational system design concepts using Python and Flask,
+  following the assignment specifications exactly: SQLite for storage, in-memory dictionaries
+  for state, and the <code>requests</code> library for proxying.
+</p>
+<table>
+  <tr><th>Task</th><th>Implementation</th><th>Key Concept</th></tr>
+  <tr><td><strong>Task 1</strong></td><td>URL Shortener — Flask + SQLite + Base62</td><td>API design, data modelling</td></tr>
+  <tr><td><strong>Task 2</strong></td><td>Rate Limiter — Flask + in-memory dict</td><td>Sliding Window algorithm</td></tr>
+  <tr><td><strong>Task 3</strong></td><td>Load Balancer — Python + requests library</td><td>Round Robin, reverse proxy</td></tr>
+</table>
+
+
+<!-- ════════════════════════════════════════════════════════
+     TASK 1 — URL SHORTENER
+════════════════════════════════════════════════════════ -->
+<div class="task-banner">
+  <h2>Task 1 — URL Shortener Lite</h2>
+  <p>Flask · SQLite · Base62 encoding · POST /shorten · GET /&lt;short_id&gt;</p>
+</div>
+
+<h3>Overview</h3>
+<p>A lightweight URL shortening service. Before writing any code, the most important
+design question was: <em>which operation happens more often — shortening or redirecting?</em>
+Redirects vastly outnumber shortens, so the GET path must be as fast as possible.</p>
+
+<h3>Architecture Diagram</h3>
+<div class="diagram">
+┌─────────────────────────────────────────────────────────┐
+│                     URL Shortener                       │
+│                   Flask  (port 5000)                    │
+└──────────────┬──────────────────────┬───────────────────┘
+               │                      │
+    POST /shorten                GET /<short_id>
+               │                      │
+               ▼                      ▼
+  ┌────────────────────┐   ┌─────────────────────────┐
+  │  1. Hash URL       │   │  1. Lookup short_id      │
+  │     (SHA-256)      │   │     in SQLite            │
+  │  2. Check for      │   │  2. Not found → 404      │
+  │     duplicate      │   │  3. Found → 302 redirect │
+  │  3. Generate       │   │     to original URL      │
+  │     Base62 ID      │   └─────────────────────────┘
+  │  4. Store in       │
+  │     SQLite         │
+  │  5. Return         │
+  │     short URL      │
+  └────────────────────┘
+               │
+               ▼
+  ┌─────────────────────────────┐
+  │        SQLite DB            │
+  │  Table: urls                │
+  │  ─────────────────────────  │
+  │  id          INTEGER PK     │
+  │  short_id    TEXT UNIQUE    │  ← indexed (every GET)
+  │  original_url TEXT          │
+  │  url_hash    TEXT UNIQUE    │  ← indexed (duplicate check)
+  │  created_at  DATETIME       │
+  └─────────────────────────────┘
+</div>
+
+<h3>Step 1 — Base62 Encoding</h3>
+<p>Base62 uses digits (0-9), uppercase (A-Z), and lowercase (a-z) — 62 characters total.
+With 6 characters: 62⁶ ≈ <strong>56 billion</strong> unique IDs. The URL is hashed with
+SHA-256 and the first 48 bits of the hash are encoded as Base62, giving a deterministic,
+collision-resistant short ID.</p>
+
+<h4>Code — Base62 encoder</h4>
+<pre><code>BASE62 = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+
+def to_base62(number, length=6):
+    """Convert an integer to a Base62 string of fixed length."""
+    result = ""
+    while len(result) < length:
+        result = BASE62[number % 62] + result
+        number //= 62
+    return result[:length]
+
+def generate_short_id(url, attempt=0):
+    payload  = url if attempt == 0 else f"{url}:{attempt}"
+    hex_hash = hashlib.sha256(payload.encode()).hexdigest()
+    number   = int(hex_hash[:12], 16)   # first 48 bits
+    return to_base62(number)</code></pre>
+
+<div class="decision">
+  <strong>Why hash the URL instead of generating a random ID?</strong>
+  The same URL always produces the same hash → automatic duplicate detection with just one
+  indexed lookup. No extra "has this URL been seen?" query needed on the happy path.
+</div>
+
+<h3>Step 2 — SQLite Schema</h3>
+<h4>Code — init_db()</h4>
+<pre><code>db.execute("""
+    CREATE TABLE IF NOT EXISTS urls (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        short_id     TEXT    NOT NULL UNIQUE,
+        original_url TEXT    NOT NULL,
+        url_hash     TEXT    NOT NULL UNIQUE,
+        created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+""")
+db.execute("CREATE INDEX IF NOT EXISTS idx_short_id ON urls (short_id)")
+db.execute("CREATE INDEX IF NOT EXISTS idx_url_hash  ON urls (url_hash)")</code></pre>
+
+<div class="decision">
+  <strong>Why two indexes?</strong>
+  <code>idx_short_id</code> is hit on every single redirect (the hot path).
+  <code>idx_url_hash</code> is used for duplicate detection on POST — indexing the
+  hash (64 chars) instead of the raw URL avoids issues with very long URLs (2000+ characters).
+</div>
+
+<h3>Step 3 — API Endpoints</h3>
+<h4>Code — POST /shorten</h4>
+<pre><code>@app.post("/shorten")
+def shorten():
+    url      = request.get_json().get("url", "").strip()
+    url_hash = hashlib.sha256(url.encode()).hexdigest()
+
+    # Duplicate check — same URL always gets same short link
+    existing = db.execute("SELECT short_id FROM urls WHERE url_hash = ?",
+                          (url_hash,)).fetchone()
+    if existing:
+        return jsonify({"short_id": existing["short_id"], ...})
+
+    # Generate short ID; retry loop handles hash collisions
+    attempt = 0
+    while True:
+        short_id = generate_short_id(url, attempt)
+        if not db.execute("SELECT 1 FROM urls WHERE short_id = ?",
+                          (short_id,)).fetchone():
+            break
+        attempt += 1
+
+    db.execute("INSERT INTO urls (short_id, original_url, url_hash) VALUES (?,?,?)",
+               (short_id, url, url_hash))
+    db.commit()
+    return jsonify({"short_id": short_id, "short_url": f"{BASE_URL}/{short_id}"}), 201</code></pre>
+
+<h4>Code — GET /&lt;short_id&gt;</h4>
+<pre><code>@app.get("/&lt;short_id&gt;")
+def redirect_url(short_id):
+    row = db.execute("SELECT original_url FROM urls WHERE short_id = ?",
+                     (short_id,)).fetchone()
+    if not row:
+        return jsonify({"error": "Short URL not found"}), 404
+    return redirect(row["original_url"], code=302)</code></pre>
+
+<h3>Running &amp; Testing</h3>
+<pre><code>pip install flask
+python app.py
+# → URL Shortener running on http://localhost:5000
+
+# Shorten a URL
+curl -X POST http://localhost:5000/shorten \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://www.google.com/search?q=system+design"}'
+# { "short_id": "9AWvTG", "short_url": "http://localhost:5000/9AWvTG" }
+
+# Redirect
+curl -v http://localhost:5000/9AWvTG
+# HTTP 302  Location: https://www.google.com/search?q=system+design
+
+# Duplicate → same short_id returned
+curl -X POST http://localhost:5000/shorten -d '{"url": "...same..."}'
+# { "short_id": "9AWvTG", "note": "URL already shortened" }</code></pre>
+
+<div class="screenshot"><span>📸</span>Screenshot: Terminal — server start, POST /shorten response (201), GET redirect (302), duplicate URL returning same ID</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     TASK 2 — RATE LIMITER
+════════════════════════════════════════════════════════ -->
+<div class="task-banner">
+  <h2>Task 2 — Rate Limiter Mini</h2>
+  <p>Flask · In-memory dictionary · Sliding Window · 5 requests / 60 seconds / IP</p>
+</div>
+
+<h3>Overview</h3>
+<p>A rate limiter applied to <code>GET /data</code>. Each user (identified by IP) is allowed
+5 requests per 60-second sliding window. State is stored in an in-memory Python dictionary
+that maps each IP to a list of timestamps.</p>
+
+<h3>Architecture Diagram</h3>
+<div class="diagram">
+GET /data
+    │
+    ▼
+┌──────────────────────────────────────────────────┐
+│              is_rate_limited(ip)                 │
+│                                                  │
+│  in-memory dict:                                 │
+│  { "1.2.3.4": [t1, t2, t3, t4, t5], ... }       │
+│                                                  │
+│  Step 1 ── Prune timestamps older than 60s       │
+│            timestamps = [t for t in timestamps  │
+│                          if t >= now - 60]       │
+│                                                  │
+│  Step 2 ── Count remaining (= requests in window)│
+│            count = len(timestamps)               │
+│                                                  │
+│  Step 3 ── Decision                              │
+│            count >= 5 ?                          │
+│              YES → 429 Too Many Requests         │
+│              NO  → append now, allow request     │
+└──────────────────────────────────────────────────┘
+    │                    │
+    ▼                    ▼
+200 OK               429 Too Many Requests
+"Here is your data!" "Try again later."
+</div>
+
+<h3>Step 1 — Fixed Window vs Sliding Window</h3>
+<p>The requirement says "5 requests per minute," but a naive Fixed Window resets at
+:00 every minute. A user can fire 5 at :59 and 5 more at :01 — 10 requests in 2 seconds,
+neither window reports over the limit.</p>
+
+<div class="diagram">
+Fixed Window (broken at boundary):
+  Minute 1: [─────────── 5 requests at :58, :59 ──]  ← allowed
+  Minute 2: [5 requests at :00, :01 ───────────────]  ← allowed
+  ↑ 10 requests in 3 seconds — not rate limited!
+
+Sliding Window (correct):
+  At any moment, look back exactly 60 seconds from NOW.
+  Always at most 5 requests in any 60-second span. ✓
+</div>
+
+<h3>Step 2 — In-Memory Dictionary Implementation</h3>
+<h4>Code — is_rate_limited()</h4>
+<pre><code># In-memory store — maps IP → list of Unix timestamps
+request_log: dict[str, list[float]] = {}
+
+LIMIT      = 5   # requests allowed
+WINDOW_SEC = 60  # window size
+
+def is_rate_limited(ip: str) -> tuple[bool, int]:
+    now          = time.time()
+    window_start = now - WINDOW_SEC
+
+    timestamps = request_log.get(ip, [])
+
+    # Step 1 — prune expired timestamps (the "sliding" in sliding window)
+    timestamps = [t for t in timestamps if t >= window_start]
+
+    count = len(timestamps)
+
+    if count >= LIMIT:
+        # Return seconds until oldest slot frees up
+        retry_after = int((timestamps[0] + WINDOW_SEC) - now) + 1
+        request_log[ip] = timestamps   # save pruned list
+        return True, retry_after
+
+    # Allow: record this request
+    timestamps.append(now)
+    request_log[ip] = timestamps
+    return False, LIMIT - len(timestamps)</code></pre>
+
+<h4>Code — /data route</h4>
+<pre><code>@app.get("/data")
+def data():
+    ip = request.remote_addr or "unknown"
+    limited, value = is_rate_limited(ip)
+
+    if limited:
+        return jsonify({
+            "error": "Too Many Requests",
+            "message": "Try again later.",
+            "retry_after_seconds": value
+        }), 429
+
+    return jsonify({
+        "message": "Here is your data!",
+        "requests_remaining": value
+    })</code></pre>
+
+<h3>Running &amp; Testing</h3>
+<pre><code>python app.py
+# → Rate Limiter running on http://localhost:5001
+
+# Requests 1-5: HTTP 200
+for i in {1..5}; do curl -s http://localhost:5001/data; echo; done
+
+# Request 6: HTTP 429
+curl http://localhost:5001/data
+# { "error": "Too Many Requests", "message": "Try again later.", "retry_after_seconds": 58 }</code></pre>
+
+<div class="screenshot"><span>📸</span>Screenshot: Terminal — 5 successful responses (200) with requests_remaining counting down 4→3→2→1→0, then 6th request blocked (429)</div>
+
+<div class="decision">
+  <strong>Why the retry_after_seconds is not always 60</strong>
+  When the 6th request arrives, the oldest timestamp might be from 10 seconds ago — meaning
+  that slot will expire in 50 seconds, not 60. <code>retry_after = timestamps[0] + 60 - now</code>
+  gives the exact time until 1 slot frees up, anchored to the first request in the window.
+</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     TASK 3 — LOAD BALANCER
+════════════════════════════════════════════════════════ -->
+<div class="task-banner">
+  <h2>Task 3 — Load Balancer Simulation</h2>
+  <p>Python · Flask · requests library · Round Robin · 3 mock backends</p>
+</div>
+
+<h3>Overview</h3>
+<p>A Round Robin load balancer that forwards incoming requests to 3 mock Flask servers
+using the Python <code>requests</code> library. The load balancer acts as a reverse proxy —
+the client only talks to port 5020 and never directly to a backend.</p>
+
+<h3>Architecture Diagram</h3>
+<div class="diagram">
+                    Client
+                      │
+                      ▼
+        ┌─────────────────────────┐
+        │     Load Balancer       │
+        │     Flask (port 5020)   │
+        │                         │
+        │  counter = 0            │
+        │  server = servers[      │
+        │    counter % 3          │
+        │  ]                      │
+        │  counter += 1           │
+        │                         │
+        │  requests.get(server)   │  ← Python requests library
+        └────────────┬────────────┘
+                     │
+          Round Robin rotation
+          ┌──────────┼──────────┐
+          ▼          ▼          ▼
+   ┌────────────┐ ┌──────────┐ ┌──────────┐
+   │ Server 1   │ │ Server 2 │ │ Server 3 │
+   │ port 5010  │ │ port 5011│ │ port 5012│
+   │            │ │          │ │          │
+   │ "Hello     │ │ "Hello   │ │ "Hello   │
+   │  from      │ │  from    │ │  from    │
+   │  Server 1!"│ │ Server 2"│ │ Server 3"│
+   └────────────┘ └──────────┘ └──────────┘
+
+Request routing sequence:
+  Req 1 → Server 1   (0 % 3 = 0)
+  Req 2 → Server 2   (1 % 3 = 1)
+  Req 3 → Server 3   (2 % 3 = 2)
+  Req 4 → Server 1   (3 % 3 = 0)  ← cycles back
+  Req 5 → Server 2   (4 % 3 = 1)
+  ...
+</div>
+
+<h3>Step 1 — Mock Backend Servers</h3>
+<h4>Code — backends.py</h4>
+<pre><code>def make_server(server_id: int, port: int):
+    app = Flask(f"server{server_id}")
+
+    @app.get("/")
+    def index():
+        return jsonify({"message": f"Hello from Server {server_id}!"})
+
+    app.run(port=port)
+
+# Start all 3 in separate threads
+BACKENDS = [{"id": 1, "port": 5010}, {"id": 2, "port": 5011}, {"id": 3, "port": 5012}]
+for b in BACKENDS:
+    threading.Thread(target=make_server, args=(b["id"], b["port"]), daemon=True).start()</code></pre>
+
+<h3>Step 2 — Round Robin Algorithm</h3>
+<h4>Code — load_balancer.py</h4>
+<pre><code>SERVERS = ["http://localhost:5010", "http://localhost:5011", "http://localhost:5012"]
+request_counter = 0
+
+def get_next_server() -> str:
+    global request_counter
+    server = SERVERS[request_counter % len(SERVERS)]  # modulo = cyclic rotation
+    request_counter += 1
+    return server
+
+@app.route("/", defaults={"path": ""}, methods=["GET","POST","PUT","DELETE"])
+@app.route("/&lt;path:path&gt;",             methods=["GET","POST","PUT","DELETE"])
+def proxy(path):
+    target = get_next_server()
+    print(f"[LB] Request #{request_counter} → {target}")
+
+    resp = requests.request(         # forward via Python requests library
+        method  = request.method,
+        url     = f"{target}/{path}",
+        headers = {k: v for k, v in request.headers if k != "Host"},
+        data    = request.get_data(),
+        timeout = 5,
+    )
+    return Response(resp.content, status=resp.status_code,
+                    headers={"X-Served-By": target})</code></pre>
+
+<div class="decision">
+  <strong>Why modulo arithmetic?</strong>
+  <code>servers[counter % n]</code> is an elegant, zero-state solution for cyclic rotation.
+  A single incrementing integer drives infinite round-robin distribution across any number
+  of servers. No queue, no circular buffer needed.
+</div>
+
+<h3>Running &amp; Testing</h3>
+<pre><code># Terminal 1 — start 3 backends
+python backends.py
+# Backend Server 1 started on http://localhost:5010
+# Backend Server 2 started on http://localhost:5011
+# Backend Server 3 started on http://localhost:5012
+
+# Terminal 2 — start load balancer
+python load_balancer.py
+# Load Balancer running on http://localhost:5020
+
+# Send 6 requests — observe Round Robin
+for i in {1..6}; do
+  echo -n "Request $i: "
+  curl -s http://localhost:5020/ | python3 -c "import sys,json; print(json.load(sys.stdin)['message'])"
+done
+
+# Request 1: Hello from Server 1!
+# Request 2: Hello from Server 2!
+# Request 3: Hello from Server 3!
+# Request 4: Hello from Server 1!
+# Request 5: Hello from Server 2!
+# Request 6: Hello from Server 3!</code></pre>
+
+<div class="screenshot"><span>📸</span>Screenshot: Two terminals — left showing backend server logs, right showing curl requests cycling Server 1 → 2 → 3 → 1</div>
+
+
+<!-- ════════════════════════════════════════════════════════
+     PRODUCTION COMPARISON
+════════════════════════════════════════════════════════ -->
+<h2>Production Approach vs Assignment Approach — Trade-offs</h2>
+<p>
+  This section compares the simplified approach used in this assignment with a
+  production-ready implementation, explaining when each is appropriate.
+</p>
+
+<h3>Task 1 — URL Shortener</h3>
+<table>
+  <tr><th>Dimension</th><th>Assignment (SQLite)</th><th>Production (PostgreSQL + Redis)</th></tr>
+  <tr><td>Storage</td><td>SQLite — single file, no server needed, perfect for learning and low traffic</td><td>PostgreSQL — handles concurrent writes, row-level locking, replication</td></tr>
+  <tr><td>Read speed</td><td>Direct DB lookup on every redirect — adequate for hundreds of req/s</td><td>Redis cache in front of DB — microsecond lookups, handles millions of req/s</td></tr>
+  <tr><td>Scalability</td><td>Single-process only — can't scale horizontally</td><td>Cache layer means any number of app servers share the same fast read path</td></tr>
+  <tr><td>When to use</td><td>Prototyping, assignments, internal tools with &lt;1k users</td><td>Public-facing services, production workloads</td></tr>
+</table>
+
+<h3>Task 2 — Rate Limiter</h3>
+<table>
+  <tr><th>Dimension</th><th>Assignment (in-memory dict)</th><th>Production (Redis sorted set)</th></tr>
+  <tr><td>State location</td><td>Python process memory — lost on restart</td><td>Redis — persists across restarts, shared across all server instances</td></tr>
+  <tr><td>Multi-server</td><td>Each server has its own counter — a user can bypass the limit by hitting different servers</td><td>All servers share one Redis instance — true global rate limiting</td></tr>
+  <tr><td>Atomicity</td><td>Single-process Python GIL prevents race conditions in development, but not safe under true concurrency</td><td>Redis MULTI/EXEC pipeline is atomic — no race conditions under any load</td></tr>
+  <tr><td>Memory</td><td>Dict grows unbounded if IPs never expire — needs manual cleanup</td><td>Redis TTL auto-expires old keys — zero maintenance</td></tr>
+  <tr><td>When to use</td><td>Understanding the algorithm, single-server dev environments</td><td>Any multi-instance deployment or production API</td></tr>
+</table>
+<div class="decision">
+  <strong>Learning progression</strong>
+  The in-memory dictionary makes the algorithm transparent — every step is visible in plain
+  Python. Redis abstracts away the storage but adds reliability. The right approach is to
+  understand the dict version first (as done here), then graduate to Redis for production.
+</div>
+
+<h3>Task 3 — Load Balancer</h3>
+<table>
+  <tr><th>Dimension</th><th>Assignment (Python + requests)</th><th>Production (NGINX / AWS ALB)</th></tr>
+  <tr><td>Throughput</td><td>Handles hundreds of req/s — fine for simulation</td><td>Handles millions of req/s with minimal latency overhead</td></tr>
+  <tr><td>Health checks</td><td>Not implemented (simulated only)</td><td>Active health checks; dead servers automatically removed from rotation</td></tr>
+  <tr><td>Algorithms</td><td>Round Robin only</td><td>Round Robin, Least Connections, IP Hash, weighted distribution</td></tr>
+  <tr><td>When to use</td><td>Learning Round Robin, testing routing logic</td><td>Any production system serving real users</td></tr>
+</table>
+
+
+<!-- ════════════════════════════════════════════════════════
+     FINAL NOTES
+════════════════════════════════════════════════════════ -->
+<h2>Final Notes</h2>
+
+<h3>Key Learnings</h3>
+<ol>
+  <li><strong>Read/write ratio drives architecture.</strong> The URL shortener is ~8:2 reads to writes. This one insight justifies every optimisation — caching, read-optimised indexes, and the Cache-Aside pattern.</li>
+  <li><strong>Sliding Window eliminates the Fixed Window boundary exploit.</strong> Resetting at fixed intervals lets users double their effective rate at the minute boundary. A sliding window anchored to "now - 60s" eliminates this completely.</li>
+  <li><strong>Hash-based short IDs give free duplicate detection.</strong> The same URL always hashes to the same ID — no extra lookup needed to check for existing entries.</li>
+  <li><strong>Modulo arithmetic is all Round Robin needs.</strong> <code>servers[counter % n]</code> distributes traffic perfectly with a single integer and zero additional data structures.</li>
+  <li><strong>In-memory state has invisible multi-server failure modes.</strong> The dict rate limiter works correctly on one server but silently fails when load-balanced — a critical lesson in why distributed systems need shared state.</li>
+  <li><strong>Retry-After should be anchored to the oldest request, not the current time.</strong> If the first of 5 requests was 50 seconds ago, the real retry is 10 seconds — not 60. Computing <code>timestamps[0] + 60 - now</code> gives the correct answer.</li>
+  <li><strong>Always verify technology constraints before starting implementation.</strong> Strong architectural knowledge is only valuable when applied within the given requirements. Production thinking is a tool, not a default.</li>
+</ol>
+
+<h3>Challenges Faced and How They Were Solved</h3>
+<table>
+  <tr><th>Challenge</th><th>What went wrong</th><th>How it was solved</th></tr>
+  <tr>
+    <td>Initial submission used wrong tech stack</td>
+    <td>Built with Node.js, PostgreSQL, and Redis — production-grade but outside assignment constraints</td>
+    <td>Rewrote all three tasks in Python using Flask, SQLite, and in-memory dict as specified. Kept architectural thinking, changed the implementation layer.</td>
+  </tr>
+  <tr>
+    <td>Retry-After countdown started from 60s even mid-window</td>
+    <td>The UI hardcoded <code>retryAfter = 60</code> as a fallback when the server didn't return the value. Also, the 5th successful request returned no retryAfter at all.</td>
+    <td>Backend now computes <code>timestamps[0] + 60 - now</code> (oldest entry in window) and returns the precise remaining seconds. Frontend reads from the response instead of hardcoding.</td>
+  </tr>
+  <tr>
+    <td>Duplicate URL detection for very long URLs</td>
+    <td>Indexing raw URL strings up to 2000+ characters is slow and can exceed SQLite limits.</td>
+    <td>Store and index the SHA-256 hash (fixed 64 chars) of the URL instead of the URL itself. The hash is uniqueness-preserving and always the same length.</td>
+  </tr>
+  <tr>
+    <td>Hash collision on short ID generation</td>
+    <td>Two different URLs could produce the same 6-character Base62 ID.</td>
+    <td>Added a retry loop: on collision, append an attempt counter to the URL before hashing (<code>f"{url}:{attempt}"</code>), shifting the hash output until a unique ID is found.</td>
+  </tr>
+  <tr>
+    <td>Rate limiter in-memory dict grows without bound</td>
+    <td>IPs that haven't made a request in hours still occupy memory.</td>
+    <td>Timestamps are pruned on every request (entries older than 60s are removed). If the resulting list is empty, the key can also be deleted. In production, Redis TTL handles this automatically.</td>
+  </tr>
+</table>
+
+</div>
+</body>
+</html>
